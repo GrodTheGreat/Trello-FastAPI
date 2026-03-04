@@ -17,9 +17,20 @@ class BoardPermissionLevel(Enum):
     PUBLIC = "public"
 
 
+class BoardMemberRole(Enum):
+    ADMIN = "admin"
+    NORMAL = "normal"
+    OBSERVER = "observer"
+
+
 class OrganizationPermissionLevel(Enum):
     PRIVATE = "private"
     PUBLIC = "public"
+
+
+class OrganizationMemberRole(Enum):
+    ADMIN = "admin"
+    NORMAL = "normal"
 
 
 class BoardMemberRecord(SQLModel, table=True):
@@ -33,6 +44,7 @@ class BoardMemberRecord(SQLModel, table=True):
         primary_key=True,
         foreign_key="userrecord.id",
     )
+    role: BoardMemberRole = Field(default=BoardMemberRole.OBSERVER)
 
     board: Optional["BoardRecord"] = Relationship(back_populates="members")
     member: Optional["UserRecord"] = Relationship(back_populates="board_memberships")
@@ -49,6 +61,7 @@ class OrganizationMemberRecord(SQLModel, table=True):
         primary_key=True,
         foreign_key="userrecord.id",
     )
+    role: OrganizationMemberRole = Field(default=OrganizationMemberRole.NORMAL)
 
     organization: Optional["OrganizationRecord"] = Relationship(
         back_populates="members"
@@ -162,7 +175,11 @@ with Session(engine) as session:
             creator=u1 if i % 2 == 1 else u2,
         )
         session.add(b)
-        bm = BoardMemberRecord(board=b, member=u1 if i % 2 == 1 else u2)
+        bm = BoardMemberRecord(
+            board=b,
+            member=u1 if i % 2 == 1 else u2,
+            role=BoardMemberRole.ADMIN,
+        )
         session.add(bm)
         for j in range(1, 4):
             li = ListRecord(name=f"List {j * i}", position=1_000.0 * j, board=b)
