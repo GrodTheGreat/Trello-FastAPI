@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Generator, Optional
+from typing import Optional
 
 from sqlmodel import (
     Field,
@@ -33,6 +33,26 @@ class BoardMemberRecord(SQLModel, table=True):
     member: Optional["UserRecord"] = Relationship(back_populates="board_memberships")
 
 
+class OrganizationMemberRecord(SQLModel, table=True):
+    organization_id: int | None = Field(
+        default=None,
+        primary_key=True,
+        foreign_key="organizationrecord.id",
+    )
+    member_id: int | None = Field(
+        default=None,
+        primary_key=True,
+        foreign_key="userrecord.id",
+    )
+
+    organization: Optional["OrganizationRecord"] = Relationship(
+        back_populates="members"
+    )
+    member: Optional["UserRecord"] = Relationship(
+        back_populates="organization_memberships"
+    )
+
+
 class UserRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
@@ -47,11 +67,17 @@ class UserRecord(SQLModel, table=True):
         back_populates="user",
         cascade_delete=True,
     )
+    organization_memberships: list["OrganizationMemberRecord"] = Relationship(
+        back_populates="member",
+    )
 
 
 class BoardRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     creator_id: int | None = Field(default=None, foreign_key="userrecord.id")
+    organization_id: int | None = Field(
+        default=None, foreign_key="organizationrecord.id"
+    )
     name: str
     permissionLevel: BoardPermissionLevel = Field(default=BoardPermissionLevel.ORG)
 
@@ -82,6 +108,14 @@ class ListRecord(SQLModel, table=True):
     cards: list["CardRecord"] = Relationship(back_populates="list", cascade_delete=True)
 
 
+class OrganizationRecord(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+
+    boards: list["BoardRecord"] = Relationship(back_populates="organization")
+    members: list["UserRecord"] = Relationship(back_populates="organization")
+
+
 class SessionRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     session_hash: str
@@ -101,8 +135,13 @@ SQLModel.metadata.create_all(engine)
 with Session(engine) as session:
     u1 = UserRecord(email="user1@email.com", password_hash="password")
     u2 = UserRecord(email="user2@email.com", password_hash="password")
+    o = OrganizationRecord(name="Organization 1")
+    session.add(u1)
+    session.add(u2)
+    session.add(o)
     for i in range(1, 4):
         b = BoardRecord(
+            orgnization=o,
             name=f"Board {i}",
             permissionLevel=BoardPermissionLevel.ORG,
             creator=u1 if i % 2 == 1 else u2,
