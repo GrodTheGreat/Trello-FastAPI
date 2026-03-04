@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from trello.api import api_router
+from trello.api.router import api_router
 
 app = FastAPI()
 
