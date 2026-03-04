@@ -1,125 +1,31 @@
-from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
-from sqlmodel import Session
 
 from trello.authorization import BoardPolicy, CardPolicy, ListPolicy
 from trello.boards import BoardRepository
 from trello.cards import CardRepository
-from trello.database import BoardRecord, CardRecord, ListRecord, get_db
+from trello.dependencies import (
+    OptionalUser,
+    get_board_policy,
+    get_board_repo,
+    get_card_policy,
+    get_card_repo,
+    get_list_policy,
+    get_list_repo,
+    get_user,
+)
 from trello.lists import ListRepository
-
-
-class BaseSchema(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-class BoardSchema(BaseSchema):
-    id: int
-    creator_id: int
-    name: str
-
-
-class BoardResponse(BaseSchema):
-    board: BoardSchema
-
-
-class ListSchema(BaseSchema):
-    id: int
-    board_id: int
-    name: str
-    position: float
-
-
-class ListResponse(BaseSchema):
-    list: ListSchema
-
-
-class ListsResponse(BaseSchema):
-    lists: list[ListSchema]
-
-
-class CardSchema(BaseSchema):
-    id: int
-    list_id: int
-    name: str
-    position: float
-
-
-class CardResponse(BaseSchema):
-    card: CardSchema
-
-
-class CardsResponse(BaseSchema):
-    cards: list[CardSchema]
-
-
-@dataclass(frozen=True)
-class OptionalUser:
-    id: int = 1
-
-
-def get_user() -> OptionalUser:
-    return OptionalUser()
-
-
-def get_board_policy(db: Annotated[Session, Depends(get_db)]) -> BoardPolicy:
-    return BoardPolicy(db)
-
-
-def get_board_repo(db: Annotated[Session, Depends(get_db)]) -> BoardRepository:
-    return BoardRepository(db)
-
-
-def get_card_policy(db: Annotated[Session, Depends(get_db)]) -> CardPolicy:
-    return CardPolicy(db)
-
-
-def get_card_repo(db: Annotated[Session, Depends(get_db)]) -> CardRepository:
-    return CardRepository(db)
-
-
-def get_list_policy(db: Annotated[Session, Depends(get_db)]) -> ListPolicy:
-    return ListPolicy(db)
-
-
-def get_list_repo(db: Annotated[Session, Depends(get_db)]) -> ListRepository:
-    return ListRepository(db)
-
-
-def board_record_to_schema(board: BoardRecord) -> BoardSchema:
-    if board.id is None or board.creator_id is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return BoardSchema(id=board.id, creator_id=board.creator_id, name=board.name)
-
-
-def card_record_to_schema(card: CardRecord) -> CardSchema:
-    if card.id is None or card.list_id is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return CardSchema(
-        id=card.id,
-        list_id=card.list_id,
-        name=card.name,
-        position=card.position,
-    )
-
-
-def list_record_to_schema(lst: ListRecord) -> ListSchema:
-    if lst.id is None or lst.board_id is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return ListSchema(
-        id=lst.id,
-        board_id=lst.board_id,
-        name=lst.name,
-        position=lst.position,
-    )
-
+from trello.schemas import (
+    BoardResponse,
+    CardResponse,
+    CardsResponse,
+    ListResponse,
+    ListsResponse,
+    board_record_to_schema,
+    card_record_to_schema,
+    list_record_to_schema,
+)
 
 api_router = APIRouter()
 boards_router = APIRouter()
@@ -158,9 +64,7 @@ async def get_board_cards(
     if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     cards = card_repo.find_by_board(board.id)
-    cards_data = []
-    for card in cards:
-        cards_data.append(card_record_to_schema(card))
+    cards_data = [card_record_to_schema(card) for card in cards]
 
     return CardsResponse(cards=cards_data)
 
@@ -177,9 +81,7 @@ async def get_board_lists(
     if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     lists = list_repo.find_by_board(board.id)
-    lists_data = []
-    for lst in lists:
-        lists_data.append(list_record_to_schema(lst))
+    lists_data = [list_record_to_schema(lst) for lst in lists]
 
     return ListsResponse(lists=lists_data)
 
@@ -287,9 +189,7 @@ async def get_list_cards(
     if lst.id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     cards = card_repo.find_by_list(list_id=lst.id)
-    cards_data = []
-    for card in cards:
-        cards_data.append(card_record_to_schema(card))
+    cards_data = [card_record_to_schema(card) for card in cards]
 
     return CardsResponse(cards=cards_data)
 

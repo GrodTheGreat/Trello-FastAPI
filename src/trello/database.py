@@ -117,8 +117,3 @@ with Session(engine) as session:
                 c = CardRecord(name=f"Card {k * k * i}", position=1_000.0 * k, list=li)
                 session.add(c)
     session.commit()
-
-
-def get_db() -> Generator[Session, None, None]:
-    with Session(engine) as session:
-        yield session
