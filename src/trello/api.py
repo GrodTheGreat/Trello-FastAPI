@@ -142,20 +142,14 @@ async def get_board(
 async def get_board_cards(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    db: Annotated[Session, Depends(get_db)],
     board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> CardsResponse:
     board = board_repo.find(board_id=board_id)
     if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    statement = (
-        select(CardRecord)
-        .join(ListRecord)
-        .where(ListRecord.board_id == board.id)
-        .order_by(col(ListRecord.position), col(CardRecord.position))
-    )
-    cards = db.exec(statement).all()
+    cards = card_repo.find_by_board(board.id)
     cards_data = []
     for card in cards:
         cards_data.append(card_record_to_schema(card))
