@@ -13,4 +13,5 @@ class OrganizationRepository:
             .where(OrganizationRecord.id == organization_id)
             .limit(1)
         )
+
         return self._db.exec(statement).first()
