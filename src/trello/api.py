@@ -92,6 +92,7 @@ def board_record_to_schema(board: BoardRecord) -> BoardSchema:
 def card_record_to_schema(card: CardRecord) -> CardSchema:
     if card.id is None or card.list_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     return CardSchema(
         id=card.id,
         list_id=card.list_id,
@@ -103,6 +104,7 @@ def card_record_to_schema(card: CardRecord) -> CardSchema:
 def list_record_to_schema(lst: ListRecord) -> ListSchema:
     if lst.id is None or lst.board_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     return ListSchema(
         id=lst.id,
         board_id=lst.board_id,
@@ -129,9 +131,7 @@ async def get_board(
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> BoardResponse:
     board = board_repo.find(board_id=board_id)
-    if board is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    if not board_policy.can_view(user.id, board):
+    if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
@@ -143,10 +143,11 @@ async def get_board_cards(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
     db: Annotated[Session, Depends(get_db)],
+    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> CardsResponse:
     board = board_repo.find(board_id=board_id)
-    if board is None:
+    if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = (
         select(CardRecord)
@@ -167,10 +168,11 @@ async def get_board_lists(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
     db: Annotated[Session, Depends(get_db)],
+    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> ListsResponse:
     board = board_repo.find(board_id=board_id)
-    if board is None:
+    if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = (
         select(ListRecord)
@@ -272,7 +274,7 @@ async def get_list_board(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.board_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    board = board_repo.find(lst.board_id)  # We don't need requesting user here
+    board = board_repo.find(lst.board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if not board_policy.can_view(user.id, board):
