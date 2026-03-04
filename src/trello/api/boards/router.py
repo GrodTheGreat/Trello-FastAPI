@@ -13,10 +13,10 @@ from trello.api.dependencies import OptionalUser, get_user
 from trello.api.lists.dependecies import get_list_repo
 from trello.api.lists.schemas import ListsResponse, list_record_to_schema
 from trello.authorization import BoardPolicy
+from trello.exceptions import NotFoundException
 
 board_router = APIRouter()
 boards_router = APIRouter()
-boards_router.include_router(board_router, prefix="/{boardId:int}")
 
 BoardIdRouteParam = Annotated[int, Path(alias="boardId", ge=1)]
 
@@ -30,7 +30,7 @@ async def get_board(
 ) -> BoardResponse:
     board = board_repo.find(board_id=board_id)
     if board is None or not board_policy.can_view(user.id, board):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise NotFoundException(f"board with id {board_id} not found")
     board_data = board_record_to_schema(board)
 
     return BoardResponse(board=board_data)
@@ -46,7 +46,7 @@ async def get_board_cards(
 ) -> CardsResponse:
     board = board_repo.find(board_id=board_id)
     if board is None or not board_policy.can_view(user.id, board):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise NotFoundException(f"board with id {board_id} not found")
     cards = card_repo.find_by_board(board.id)
     cards_data = [card_record_to_schema(card) for card in cards]
 
@@ -63,8 +63,11 @@ async def get_board_lists(
 ) -> ListsResponse:
     board = board_repo.find(board_id=board_id)
     if board is None or not board_policy.can_view(user.id, board):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise NotFoundException(f"board with id {board_id} not found")
     lists = list_repo.find_by_board(board.id)
     lists_data = [list_record_to_schema(lst) for lst in lists]
 
     return ListsResponse(lists=lists_data)
+
+
+boards_router.include_router(board_router, prefix="/{boardId:int}")
