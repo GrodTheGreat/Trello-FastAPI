@@ -14,17 +14,19 @@ from trello.boards import BoardRepository
 from trello.cards import CardRepository
 from trello.lists import ListRepository
 
+list_router = APIRouter()
 lists_router = APIRouter()
+lists_router.include_router(list_router, prefix="/{listId}")
 
 ListIdRouteParam = Annotated[int, Path(alias="listId", ge=1)]
 
 
-@lists_router.get("/{listId:int}")
+@list_router.get("")
 async def get_list(
-        list_id: ListIdRouteParam,
-        user: Annotated[OptionalUser, Depends(get_user)],
-        list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
-        list_repo: Annotated[ListRepository, Depends(get_list_repo)],
+    list_id: ListIdRouteParam,
+    user: Annotated[OptionalUser, Depends(get_user)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
+    list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListResponse:
     lst = list_repo.find(list_id=list_id)
     if lst is None or not list_policy.can_view(user.id, lst):
@@ -34,13 +36,13 @@ async def get_list(
     return ListResponse(list=list_data)
 
 
-@lists_router.get("/{listId:int}/board")
+@list_router.get("/board")
 async def get_list_board(
-        list_id: ListIdRouteParam,
-        user: Annotated[OptionalUser, Depends(get_user)],
-        board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
-        list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
-        list_repo: Annotated[ListRepository, Depends(get_list_repo)],
+    list_id: ListIdRouteParam,
+    user: Annotated[OptionalUser, Depends(get_user)],
+    board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
+    list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> BoardResponse:
     lst = list_repo.find(list_id=list_id)
     if lst is None or not list_policy.can_view(user.id, lst):
@@ -55,13 +57,13 @@ async def get_list_board(
     return BoardResponse(board=board_data)
 
 
-@lists_router.get("/{listId:int}/cards")
+@list_router.get("/cards")
 async def get_list_cards(
-        list_id: ListIdRouteParam,
-        user: Annotated[OptionalUser, Depends(get_user)],
-        card_repo: Annotated[CardRepository, Depends(get_card_repo)],
-        list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
-        list_repo: Annotated[ListRepository, Depends(get_list_repo)],
+    list_id: ListIdRouteParam,
+    user: Annotated[OptionalUser, Depends(get_user)],
+    card_repo: Annotated[CardRepository, Depends(get_card_repo)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
+    list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> CardsResponse:
     lst = list_repo.find(list_id=list_id)
     if lst is None or not list_policy.can_view(user.id, lst):

@@ -14,11 +14,14 @@ from trello.boards import BoardRepository
 from trello.cards import CardRepository
 from trello.lists import ListRepository
 
+board_router = APIRouter()
 boards_router = APIRouter()
+boards_router.include_router(board_router, prefix="/{boardId:int}")
+
 BoardIdRouteParam = Annotated[int, Path(alias="boardId", ge=1)]
 
 
-@boards_router.get("/{boardId:int}")
+@board_router.get("")
 async def get_board(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
@@ -33,7 +36,7 @@ async def get_board(
     return BoardResponse(board=board_data)
 
 
-@boards_router.get("/{boardId:int}/cards")
+@board_router.get("/cards")
 async def get_board_cards(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
@@ -50,7 +53,7 @@ async def get_board_cards(
     return CardsResponse(cards=cards_data)
 
 
-@boards_router.get("/{boardId:int}/lists")
+@board_router.get("/lists")
 async def get_board_lists(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
