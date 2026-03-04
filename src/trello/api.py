@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from sqlmodel import Session
 
-from trello.authorization import BoardPolicy
+from trello.authorization import BoardPolicy, CardPolicy, ListPolicy
 from trello.boards import BoardRepository
 from trello.cards import CardRepository
 from trello.database import BoardRecord, CardRecord, ListRecord, get_db
@@ -66,16 +66,24 @@ def get_user() -> OptionalUser:
     return OptionalUser()
 
 
-def get_board_repo(db: Annotated[Session, Depends(get_db)]) -> BoardRepository:
-    return BoardRepository(db)
-
-
 def get_board_policy(db: Annotated[Session, Depends(get_db)]) -> BoardPolicy:
     return BoardPolicy(db)
 
 
+def get_board_repo(db: Annotated[Session, Depends(get_db)]) -> BoardRepository:
+    return BoardRepository(db)
+
+
+def get_card_policy(db: Annotated[Session, Depends(get_db)]) -> CardPolicy:
+    return CardPolicy(db)
+
+
 def get_card_repo(db: Annotated[Session, Depends(get_db)]) -> CardRepository:
     return CardRepository(db)
+
+
+def get_list_policy(db: Annotated[Session, Depends(get_db)]) -> ListPolicy:
+    return ListPolicy(db)
 
 
 def get_list_repo(db: Annotated[Session, Depends(get_db)]) -> ListRepository:
@@ -180,10 +188,11 @@ async def get_board_lists(
 async def get_card(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
+    card_policy: Annotated[CardPolicy, Depends(get_card_policy)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> CardResponse:
     card = card_repo.find(card_id=card_id)
-    if card is None:
+    if card is None or not card_policy.can_view(user.id, card):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     card_data = card_record_to_schema(card)
 
@@ -194,18 +203,16 @@ async def get_card(
 async def get_card_board(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    card_policy: Annotated[CardPolicy, Depends(get_card_policy)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> BoardResponse:
     card = card_repo.find(card_id=card_id)
-    if card is None:
+    if card is None or not card_policy.can_view(user.id, card):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board = board_repo.find_by_list(card.list_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    if not board_policy.can_view(user.id, board):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
     return BoardResponse(board=board_data)
@@ -215,11 +222,12 @@ async def get_card_board(
 async def get_card_list(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
+    card_policy: Annotated[CardPolicy, Depends(get_card_policy)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListResponse:
     card = card_repo.find(card_id=card_id)
-    if card is None:
+    if card is None or not card_policy.can_view(user.id, card):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     lst = list_repo.find(list_id=card.list_id)
     if lst is None:
@@ -233,10 +241,11 @@ async def get_card_list(
 async def get_list(
     list_id: ListIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListResponse:
     lst = list_repo.find(list_id=list_id)
-    if lst is None:
+    if lst is None or not list_policy.can_view(user.id, lst):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     list_data = list_record_to_schema(lst)
 
@@ -247,20 +256,18 @@ async def get_list(
 async def get_list_board(
     list_id: ListIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> BoardResponse:
     lst = list_repo.find(list_id=list_id)
-    if lst is None:
+    if lst is None or not list_policy.can_view(user.id, lst):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.board_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     board = board_repo.find(lst.board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    if not board_policy.can_view(user.id, board):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
     return BoardResponse(board=board_data)
@@ -271,10 +278,11 @@ async def get_list_cards(
     list_id: ListIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
+    list_policy: Annotated[ListPolicy, Depends(get_list_policy)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> CardsResponse:
     lst = list_repo.find(list_id=list_id)
-    if lst is None:
+    if lst is None or not list_policy.can_view(user.id, lst):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
