@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from sqlmodel import Session, col, select
 
+from trello.authorization import BoardPolicy
 from trello.boards import BoardRepository
 from trello.cards import CardRepository
 from trello.database import BoardRecord, CardRecord, ListRecord, get_db
@@ -69,6 +70,10 @@ def get_board_repo(db: Annotated[Session, Depends(get_db)]) -> BoardRepository:
     return BoardRepository(db)
 
 
+def get_board_policy(db: Annotated[Session, Depends(get_db)]) -> BoardPolicy:
+    return BoardPolicy(db)
+
+
 def get_card_repo(db: Annotated[Session, Depends(get_db)]) -> CardRepository:
     return CardRepository(db)
 
@@ -120,10 +125,13 @@ ListIdRouteParam = Annotated[int, Path(alias="listId", ge=1)]
 async def get_board(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
+    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> BoardResponse:
-    board = board_repo.find(board_id=board_id, requested_by=user.id)
+    board = board_repo.find(board_id=board_id)
     if board is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
@@ -137,7 +145,7 @@ async def get_board_cards(
     db: Annotated[Session, Depends(get_db)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> CardsResponse:
-    board = board_repo.find(board_id=board_id, requested_by=user.id)
+    board = board_repo.find(board_id=board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = (
@@ -161,7 +169,7 @@ async def get_board_lists(
     db: Annotated[Session, Depends(get_db)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
 ) -> ListsResponse:
-    board = board_repo.find(board_id=board_id, requested_by=user.id)
+    board = board_repo.find(board_id=board_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = (
@@ -196,6 +204,7 @@ async def get_card_board(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
     db: Annotated[Session, Depends(get_db)],
+    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> BoardResponse:
     card = card_repo.find(card_id=card_id, requested_by=user.id)
@@ -210,6 +219,8 @@ async def get_card_board(
     board = db.exec(statement).first()
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if not board_policy.can_view(user.id, board):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
     return BoardResponse(board=board_data)
@@ -252,6 +263,7 @@ async def get_list(
 async def get_list_board(
     list_id: ListIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
+    board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> BoardResponse:
@@ -260,11 +272,11 @@ async def get_list_board(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.board_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    board = board_repo.find(
-        lst.board_id, requested_by=user.id
-    )  # We don't need requesting user here
+    board = board_repo.find(lst.board_id)  # We don't need requesting user here
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if not board_policy.can_view(user.id, board):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     board_data = board_record_to_schema(board)
 
     return BoardResponse(board=board_data)
