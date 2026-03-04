@@ -87,6 +87,7 @@ class BoardRecord(SQLModel, table=True):
         cascade_delete=True,
     )
     members: list["BoardMemberRecord"] = Relationship(back_populates="board")
+    organization: Optional["OrganizationRecord"] = Relationship(back_populates="boards")
 
 
 class CardRecord(SQLModel, table=True):
@@ -113,7 +114,9 @@ class OrganizationRecord(SQLModel, table=True):
     name: str
 
     boards: list["BoardRecord"] = Relationship(back_populates="organization")
-    members: list["UserRecord"] = Relationship(back_populates="organization")
+    members: list["OrganizationMemberRecord"] = Relationship(
+        back_populates="organization"
+    )
 
 
 class SessionRecord(SQLModel, table=True):
@@ -139,6 +142,10 @@ with Session(engine) as session:
     session.add(u1)
     session.add(u2)
     session.add(o)
+    om1 = OrganizationMemberRecord(organization=o, member=u1)
+    om2 = OrganizationMemberRecord(organization=o, member=u2)
+    session.add(om1)
+    session.add(om2)
     for i in range(1, 4):
         b = BoardRecord(
             orgnization=o,
