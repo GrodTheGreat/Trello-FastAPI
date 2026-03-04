@@ -3,9 +3,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session
 
+from trello.adaptors.lists.repository import ListRepository
 from trello.api.dependencies import get_db
 from trello.authorization import ListPolicy
-from trello.lists import ListRepository
 
 
 def get_list_policy(db: Annotated[Session, Depends(get_db)]) -> ListPolicy:
