@@ -14,6 +14,10 @@ class BoardResponse(BaseSchema):
     board: BoardSchema
 
 
+class BoardsResponse(BaseSchema):
+    boards: list[BoardSchema]
+
+
 def board_record_to_schema(board: BoardRecord) -> BoardSchema:
     if board.id is None or board.creator_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

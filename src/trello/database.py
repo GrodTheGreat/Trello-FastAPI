@@ -156,7 +156,7 @@ with Session(engine) as session:
     session.add(om2)
     for i in range(1, 4):
         b = BoardRecord(
-            orgnization=o,
+            organization=o,
             name=f"Board {i}",
             permissionLevel=BoardPermissionLevel.ORG,
             creator=u1 if i % 2 == 1 else u2,

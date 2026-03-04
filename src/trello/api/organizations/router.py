@@ -3,7 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Path, status
 from fastapi.params import Depends
 
+from trello.adaptors.boards.repository import BoardRepository
 from trello.adaptors.organizations.repository import OrganizationRepository
+from trello.api.boards.dependecies import get_board_repo
+from trello.api.boards.schemas import BoardsResponse, board_record_to_schema
 from trello.api.dependencies import OptionalUser, get_user
 from trello.api.organizations.dependencies import (
     get_organization_policy,
@@ -39,6 +42,27 @@ async def get_organization(
     organization_data = organization_record_to_schema(organization)
 
     return OrganizationResponse(organization=organization_data)
+
+
+@organization_router.get("/boards", status_code=status.HTTP_200_OK)
+async def get_organization_boards(
+    organization_id: OrganizationIdRouteParam,
+    user: Annotated[OptionalUser, Depends(get_user)],
+    board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    organization_policy: Annotated[
+        OrganizationPolicy, Depends(get_organization_policy)
+    ],
+    organization_repo: Annotated[
+        OrganizationRepository, Depends(get_organization_repo)
+    ],
+) -> BoardsResponse:
+    organization = organization_repo.find(organization_id)
+    if organization is None or not organization_policy.can_view(user.id, organization):
+        raise NotFoundException(f"organization with id {organization_id} not found")
+    boards = board_repo.find_by_organization(organization.id)
+    boards_data = [board_record_to_schema(board) for board in boards]
+
+    return BoardsResponse(boards=boards_data)
 
 
 organizations_router.include_router(organization_router, prefix="/{organizationId:int}")

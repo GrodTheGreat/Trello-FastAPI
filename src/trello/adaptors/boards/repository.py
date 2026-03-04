@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from trello.database import BoardRecord, ListRecord
+from trello.database import BoardRecord, ListRecord, OrganizationRecord
 
 
 class BoardRepository:
@@ -21,3 +21,12 @@ class BoardRepository:
         )
 
         return self._db.exec(statement).first()
+
+    def find_by_organization(self, organization_id: int) -> list[BoardRecord]:
+        statement = (
+            select(BoardRecord)
+            .join(OrganizationRecord)
+            .where(OrganizationRecord.id == organization_id)
+        )
+
+        return list(self._db.exec(statement).all())
