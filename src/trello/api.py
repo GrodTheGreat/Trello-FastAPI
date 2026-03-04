@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
-from sqlmodel import Session, col, select
+from sqlmodel import Session
 
 from trello.authorization import BoardPolicy
 from trello.boards import BoardRepository
@@ -161,19 +161,14 @@ async def get_board_cards(
 async def get_board_lists(
     board_id: BoardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    db: Annotated[Session, Depends(get_db)],
     board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
+    list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListsResponse:
     board = board_repo.find(board_id=board_id)
     if board is None or not board_policy.can_view(user.id, board):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    statement = (
-        select(ListRecord)
-        .where(ListRecord.board_id == board.id)
-        .order_by(col(ListRecord.position))
-    )
-    lists = db.exec(statement).all()
+    lists = list_repo.find_by_board(board.id)
     lists_data = []
     for lst in lists:
         lists_data.append(list_record_to_schema(lst))
