@@ -6,6 +6,9 @@ from trello.database import (
     BoardRecord,
     CardRecord,
     ListRecord,
+    OrganizationMemberRecord,
+    OrganizationPermissionLevel,
+    OrganizationRecord,
 )
 
 
@@ -72,6 +75,26 @@ class ListPolicy:
         statement = select(BoardMemberRecord).where(
             BoardMemberRecord.board_id == board.id,
             BoardMemberRecord.member_id == user_id,
+        )
+        member = self._db.exec(statement).first()
+
+        return member is not None
+
+
+class OrganizationPolicy:
+    def __init__(self, session: Session):
+        self._db: Session = session
+
+    def can_view(self, user_id: int, organization: OrganizationRecord) -> bool:
+        if organization.permission_level == OrganizationPermissionLevel.PUBLIC:
+            return True
+        statement = (
+            select(OrganizationMemberRecord)
+            .where(
+                OrganizationMemberRecord.organization_id == organization.id,
+                OrganizationMemberRecord.member_id == user_id,
+            )
+            .limit(1)
         )
         member = self._db.exec(statement).first()
 

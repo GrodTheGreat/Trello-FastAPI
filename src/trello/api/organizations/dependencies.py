@@ -5,6 +5,11 @@ from sqlmodel import Session
 
 from trello.adaptors.organizations.repository import OrganizationRepository
 from trello.api.dependencies import get_db
+from trello.authorization import OrganizationPolicy
+
+
+def get_organization_policy(session: Session = Depends(get_db)) -> OrganizationPolicy:
+    return OrganizationPolicy(session)
 
 
 def get_organization_repo(
