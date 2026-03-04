@@ -12,6 +12,15 @@ class CardRepository:
 
         return self._db.exec(statement).first()
 
+    def find_by_board(self, board_id: int) -> list[CardRecord]:
+        statement = (
+            select(CardRecord)
+            .join(ListRecord)
+            .where(ListRecord.board_id == board_id)
+            .order_by(col(ListRecord.position), col(CardRecord.position))
+        )
+        return list(self._db.exec(statement).all())
+
     def find_by_list(self, list_id: int) -> list[CardRecord]:
         statement = (
             select(CardRecord)
