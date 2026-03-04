@@ -14,7 +14,7 @@ class BoardPolicy:
         self._db: Session = session
 
     def can_view(self, user_id: int, board: BoardRecord) -> bool:
-        if board.permissionLevel == BoardPermissionLevel.PUBLIC:
+        if board.permission_level == BoardPermissionLevel.PUBLIC:
             return True
         elif user_id == board.creator_id:
             return True

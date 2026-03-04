@@ -17,6 +17,11 @@ class BoardPermissionLevel(Enum):
     PUBLIC = "public"
 
 
+class OrganizationPermissionLevel(Enum):
+    PRIVATE = "private"
+    PUBLIC = "public"
+
+
 class BoardMemberRecord(SQLModel, table=True):
     board_id: int | None = Field(
         default=None,
@@ -79,7 +84,7 @@ class BoardRecord(SQLModel, table=True):
         default=None, foreign_key="organizationrecord.id"
     )
     name: str
-    permissionLevel: BoardPermissionLevel = Field(default=BoardPermissionLevel.ORG)
+    permission_level: BoardPermissionLevel = Field(default=BoardPermissionLevel.ORG)
 
     creator: Optional["UserRecord"] = Relationship(back_populates="boards")
     lists: list["ListRecord"] = Relationship(
@@ -112,6 +117,9 @@ class ListRecord(SQLModel, table=True):
 class OrganizationRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
+    permission_level: OrganizationPermissionLevel = Field(
+        default=OrganizationPermissionLevel.PRIVATE
+    )
 
     boards: list["BoardRecord"] = Relationship(back_populates="organization")
     members: list["OrganizationMemberRecord"] = Relationship(
