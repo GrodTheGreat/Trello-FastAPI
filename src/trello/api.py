@@ -199,20 +199,14 @@ async def get_card(
 async def get_card_board(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    db: Annotated[Session, Depends(get_db)],
     board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
+    board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> BoardResponse:
     card = card_repo.find(card_id=card_id)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    statement = (
-        select(BoardRecord)
-        .join(ListRecord)
-        .where(ListRecord.id == card.list_id)
-        .limit(1)
-    )
-    board = db.exec(statement).first()
+    board = board_repo.find_by_list(card.list_id)
     if board is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if not board_policy.can_view(user.id, board):
@@ -226,14 +220,13 @@ async def get_card_board(
 async def get_card_list(
     card_id: CardIdRouteParam,
     user: Annotated[OptionalUser, Depends(get_user)],
-    db: Annotated[Session, Depends(get_db)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
+    list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListResponse:
     card = card_repo.find(card_id=card_id)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    statement = select(ListRecord).where(ListRecord.id == card.list_id).limit(1)
-    lst = db.exec(statement).first()
+    lst = list_repo.find(list_id=card.list_id)
     if lst is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     list_data = list_record_to_schema(lst)
