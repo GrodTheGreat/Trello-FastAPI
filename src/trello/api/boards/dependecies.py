@@ -3,9 +3,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session
 
+from trello.adaptors.boards.repository import BoardRepository
 from trello.api.dependencies import get_db
 from trello.authorization import BoardPolicy
-from trello.boards import BoardRepository
 
 
 def get_board_policy(db: Annotated[Session, Depends(get_db)]) -> BoardPolicy:
