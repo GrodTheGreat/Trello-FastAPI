@@ -191,7 +191,7 @@ async def get_card(
     user: Annotated[OptionalUser, Depends(get_user)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> CardResponse:
-    card = card_repo.find(card_id=card_id, requested_by=user.id)
+    card = card_repo.find(card_id=card_id)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     card_data = card_record_to_schema(card)
@@ -207,7 +207,7 @@ async def get_card_board(
     board_policy: Annotated[BoardPolicy, Depends(get_board_policy)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> BoardResponse:
-    card = card_repo.find(card_id=card_id, requested_by=user.id)
+    card = card_repo.find(card_id=card_id)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = (
@@ -233,7 +233,7 @@ async def get_card_list(
     db: Annotated[Session, Depends(get_db)],
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
 ) -> ListResponse:
-    card = card_repo.find(card_id=card_id, requested_by=user.id)
+    card = card_repo.find(card_id=card_id)
     if card is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     statement = select(ListRecord).where(ListRecord.id == card.list_id).limit(1)
@@ -251,7 +251,7 @@ async def get_list(
     user: Annotated[OptionalUser, Depends(get_user)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> ListResponse:
-    lst = list_repo.find(list_id=list_id, requested_by=user.id)
+    lst = list_repo.find(list_id=list_id)
     if lst is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     list_data = list_record_to_schema(lst)
@@ -267,7 +267,7 @@ async def get_list_board(
     board_repo: Annotated[BoardRepository, Depends(get_board_repo)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> BoardResponse:
-    lst = list_repo.find(list_id=list_id, requested_by=user.id)
+    lst = list_repo.find(list_id=list_id)
     if lst is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.board_id is None:
@@ -289,7 +289,7 @@ async def get_list_cards(
     card_repo: Annotated[CardRepository, Depends(get_card_repo)],
     list_repo: Annotated[ListRepository, Depends(get_list_repo)],
 ) -> CardsResponse:
-    lst = list_repo.find(list_id=list_id, requested_by=user.id)
+    lst = list_repo.find(list_id=list_id)
     if lst is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if lst.id is None:

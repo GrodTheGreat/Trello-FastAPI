@@ -7,14 +7,9 @@ class CardRepository:
     def __init__(self, session: Session) -> None:
         self._db: Session = session
 
-    def find(self, card_id: int, requested_by: int) -> CardRecord | None:
-        statement = (
-            select(CardRecord)
-            .join(ListRecord)
-            .join(BoardRecord)
-            .where(CardRecord.id == card_id, BoardRecord.creator_id == requested_by)
-            .limit(1)
-        )
+    def find(self, card_id: int) -> CardRecord | None:
+        statement = select(CardRecord).where(CardRecord.id == card_id).limit(1)
+
         return self._db.exec(statement).first()
 
     def find_by_list(self, list_id: int) -> list[CardRecord]:
