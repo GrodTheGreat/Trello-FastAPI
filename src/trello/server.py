@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 
 from trello.api.router import api_router
 from trello.exceptions import NotFoundException
+from trello.ssr import ssr_router
 
 app = FastAPI()
 
@@ -15,4 +16,5 @@ async def not_found_exception_handler(_: Request, exc: NotFoundException):
     )
 
 
+app.include_router(ssr_router, prefix="")
 app.include_router(api_router, prefix="/api")
