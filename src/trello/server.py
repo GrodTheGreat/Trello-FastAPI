@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Request, status
+import uuid
+
+from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from trello.api.router import api_router
@@ -22,6 +24,15 @@ async def internal_server_exception_handler(_: Request, exc: Exception):
         content={"message": "an unexpected error occurred"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+@app.middleware("http")
+async def add_request_id_middleware(request: Request, call_next):
+    request_id = uuid.uuid4()
+    request.state.request_id = request_id
+    response: Response = await call_next(request)
+    response.headers["Trello-Request-Id"] = str(request_id)
+    return response
 
 
 app.include_router(ssr_router, prefix="")
