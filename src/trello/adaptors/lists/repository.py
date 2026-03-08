@@ -1,21 +1,22 @@
 from sqlmodel import Session, col, select
 
-from trello.database import BoardRecord, ListRecord
+from trello.database import CardListRecord
 
 
 class ListRepository:
     def __init__(self, session: Session) -> None:
         self._db: Session = session
 
-    def find(self, list_id: int) -> ListRecord | None:
-        statement = select(ListRecord).where(ListRecord.id == list_id).limit(1)
+    def find(self, list_id: int) -> CardListRecord | None:
+        statement = select(CardListRecord).where(CardListRecord.id == list_id).limit(1)
 
         return self._db.exec(statement).first()
-    def find_by_board(self,board_id:int)->list[ListRecord]:
+
+    def find_by_board(self, board_id: int) -> list[CardListRecord]:
         statement = (
-            select(ListRecord)
-            .where(ListRecord.board_id == board_id)
-            .order_by(col(ListRecord.position))
+            select(CardListRecord)
+            .where(CardListRecord.board_id == board_id)
+            .order_by(col(CardListRecord.position))
         )
 
         return list(self._db.exec(statement).all())

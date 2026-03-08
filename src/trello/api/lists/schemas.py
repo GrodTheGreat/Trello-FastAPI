@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 
 from trello.api.schemas import BaseSchema
-from trello.database import ListRecord
+from trello.database import CardListRecord
 
 
 class ListSchema(BaseSchema):
@@ -19,7 +19,7 @@ class ListsResponse(BaseSchema):
     lists: list[ListSchema]
 
 
-def list_record_to_schema(lst: ListRecord) -> ListSchema:
+def list_record_to_schema(lst: CardListRecord) -> ListSchema:
     if lst.id is None or lst.board_id is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

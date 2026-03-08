@@ -102,7 +102,7 @@ class BoardRecord(SQLModel, table=True):
     permission_level: BoardPermissionLevel = Field(default=BoardPermissionLevel.ORG)
 
     creator: Optional["UserRecord"] = Relationship(back_populates="boards")
-    lists: list["ListRecord"] = Relationship(
+    lists: list["CardListRecord"] = Relationship(
         back_populates="board",
         cascade_delete=True,
     )
@@ -112,14 +112,14 @@ class BoardRecord(SQLModel, table=True):
 
 class CardRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    list_id: int | None = Field(default=None, foreign_key="listrecord.id")
+    list_id: int | None = Field(default=None, foreign_key="cardlistrecord.id")
     name: str
     position: float
 
-    list: Optional["ListRecord"] = Relationship(back_populates="cards")
+    list: Optional["CardListRecord"] = Relationship(back_populates="cards")
 
 
-class ListRecord(SQLModel, table=True):
+class CardListRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     board_id: int | None = Field(default=None, foreign_key="boardrecord.id")
     name: str
@@ -184,7 +184,7 @@ with Session(engine) as session:
         )
         session.add(bm)
         for j in range(1, 4):
-            li = ListRecord(name=f"List {j * i}", position=1_000.0 * j, board=b)
+            li = CardListRecord(name=f"List {j * i}", position=1_000.0 * j, board=b)
             session.add(li)
             for k in range(1, 3):
                 c = CardRecord(name=f"Card {k * k * i}", position=1_000.0 * k, list=li)

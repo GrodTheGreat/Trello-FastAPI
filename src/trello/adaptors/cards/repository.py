@@ -1,6 +1,6 @@
 from sqlmodel import Session, col, select
 
-from trello.database import BoardRecord, CardRecord, ListRecord
+from trello.database import CardListRecord, CardRecord
 
 
 class CardRepository:
@@ -15,9 +15,9 @@ class CardRepository:
     def find_by_board(self, board_id: int) -> list[CardRecord]:
         statement = (
             select(CardRecord)
-            .join(ListRecord)
-            .where(ListRecord.board_id == board_id)
-            .order_by(col(ListRecord.position), col(CardRecord.position))
+            .join(CardListRecord)
+            .where(CardListRecord.board_id == board_id)
+            .order_by(col(CardListRecord.position), col(CardRecord.position))
         )
         return list(self._db.exec(statement).all())
 
