@@ -14,17 +14,15 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlmodel import Session
 
-from trello.ssr.auth.csrf import create_csrf, set_csrf_cookie, verify_csrf
-from trello.ssr.auth.passwords import is_correct_password
-from trello.ssr.auth.schemas import SignInFormData, SignUpFormData
-from trello.ssr.auth.sessions import SESSION_KEY, create_session, set_session_cookie
-from trello.ssr.auth.users import (
-    create_user,
-    get_user_by_email,
-    get_user_by_session,
-    get_user_by_username,
-)
+from trello.adaptors.users.repository import UserRepository, create_user
+from trello.database import get_db
+
+from .csrf import create_csrf, set_csrf_cookie, verify_csrf
+from .passwords import is_correct_password
+from .schemas import SignInFormData, SignUpFormData
+from .sessions import SESSION_KEY, create_session, set_session_cookie
 
 TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
 
@@ -32,24 +30,33 @@ auth_router = APIRouter()
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
-def require_auth(request: Request):
-    current_user = get_current_user(request)
-    if current_user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-
-
 @dataclass
 class CurrentUser:
     user_id: int
 
 
-def get_current_user(request: Request) -> CurrentUser | None:
+def get_user_repo(db: Annotated[Session, Depends(get_db)]) -> UserRepository:
+    return UserRepository(db)
+
+
+def get_current_user(
+    request: Request,
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> CurrentUser | None:
     token = request.cookies.get(SESSION_KEY)
     if token is None:
         return None
     session_hash = hashlib.sha256(token.encode()).hexdigest()
-    user = get_user_by_session(session_hash)
+    user = user_repo.get_by_session(session_hash)
     return CurrentUser(user_id=user.id) if user else None  # type: ignore
+
+
+def require_auth(
+    request: Request,
+    current_user: Annotated[CurrentUser | None, Depends(get_current_user)],
+):
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 @auth_router.get("/sign-in")
@@ -62,8 +69,9 @@ async def sign_in(
     request: Request,
     response: Response,
     data: Annotated[SignInFormData, Form()],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> RedirectResponse:
-    user = get_user_by_email(data.email)
+    user = user_repo.get_email(data.email)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -97,19 +105,20 @@ async def sign_up(
     request: Request,
     response: Response,
     data: Annotated[SignUpFormData, Form()],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> RedirectResponse:
     if data.password != data.confirm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="passwords don't match",
         )
-    existing_user = get_user_by_email(data.email)
+    existing_user = user_repo.get_email(data.email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="user with this email already exists",
         )
-    existing_user = get_user_by_username(data.username)
+    existing_user = user_repo.get_by_username(data.username)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

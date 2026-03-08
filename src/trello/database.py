@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Generator, Optional
 
 from sqlmodel import (
     Field,
@@ -205,3 +205,8 @@ with Session(engine) as session:
                 c = CardRecord(name=f"Card {k * k * i}", position=1_000.0 * k, list=li)
                 session.add(c)
     session.commit()
+
+
+def get_db() -> Generator[Session, None, None]:
+    with Session(engine) as db:
+        yield db
