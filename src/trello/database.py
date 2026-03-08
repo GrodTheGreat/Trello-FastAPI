@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -143,9 +144,14 @@ class OrganizationRecord(SQLModel, table=True):
 
 
 class SessionRecord(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    session_hash: str
-    user_id: int | None = Field(default=None, foreign_key="userrecord.id")
+    session_hash: str = Field(primary_key=True)
+    user_id: int | None = Field(
+        default=None,
+        primary_key=True,
+        foreign_key="userrecord.id",
+    )
+    expires_at: datetime
+    revoked_at: datetime | None = Field(default=None)
 
     user: Optional["UserRecord"] = Relationship(back_populates="sessions")
 
