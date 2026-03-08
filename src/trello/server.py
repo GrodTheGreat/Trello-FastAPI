@@ -7,6 +7,12 @@ from fastapi.responses import JSONResponse
 
 from trello.api.router import api_router
 from trello.exceptions import NotFoundException
+from trello.ssr.auth.exceptions import (
+    EmailConflictException,
+    LoginFailureException,
+    PasswordMismatchException,
+    UsernameConflictException,
+)
 from trello.ssr.router import ssr_router
 
 app = FastAPI()
@@ -17,6 +23,46 @@ async def not_found_exception_handler(_: Request, exc: NotFoundException):
     return JSONResponse(
         content={"message": exc.message},
         status_code=status.HTTP_404_NOT_FOUND,
+    )
+
+
+@app.exception_handler(PasswordMismatchException)
+async def password_mismatch_exception_handler(
+    _: Request, exc: PasswordMismatchException
+):
+    return JSONResponse(
+        content={"message": "passwords don't match"},
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@app.exception_handler(EmailConflictException)
+async def email_conflict_exception_handler(
+    _: Request, exc: EmailConflictException
+) -> JSONResponse:
+    return JSONResponse(
+        content={"message": "user with this email already exists"},
+        status_code=status.HTTP_409_CONFLICT,
+    )
+
+
+@app.exception_handler(LoginFailureException)
+async def login_failure_exception_handler(
+    _: Request, exc: LoginFailureException
+) -> JSONResponse:
+    return JSONResponse(
+        content={"message": "invalid email/password combination"},
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@app.exception_handler(UsernameConflictException)
+async def username_conflict_exception_handler(
+    _: Request, exc: UsernameConflictException
+) -> JSONResponse:
+    return JSONResponse(
+        content={"message": "user with this username already exists"},
+        status_code=status.HTTP_409_CONFLICT,
     )
 
 

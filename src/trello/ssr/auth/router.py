@@ -20,6 +20,12 @@ from trello.adaptors.users.repository import UserRepository, create_user
 from trello.database import get_db
 
 from .csrf import create_csrf, set_csrf_cookie, verify_csrf
+from .exceptions import (
+    EmailConflictException,
+    LoginFailureException,
+    PasswordMismatchException,
+    UsernameConflictException,
+)
 from .passwords import is_correct_password
 from .schemas import SignInFormData, SignUpFormData
 from .sessions import SESSION_KEY, create_session, set_session_cookie
@@ -52,7 +58,6 @@ def get_current_user(
 
 
 def require_auth(
-    request: Request,
     current_user: Annotated[CurrentUser | None, Depends(get_current_user)],
 ):
     if current_user is None:
@@ -66,22 +71,12 @@ async def get_sign_in(request: Request) -> HTMLResponse:
 
 @auth_router.post("/sign-in")
 async def sign_in(
-    request: Request,
-    response: Response,
     data: Annotated[SignInFormData, Form()],
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> RedirectResponse:
     user = user_repo.get_email(data.email)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="invalid email/password combination",
-        )
-    if not is_correct_password(data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="invalid email/password combination",
-        )
+    if user is None or not is_correct_password(data.password, user.password_hash):
+        raise LoginFailureException()
     session = create_session(user.id)  # type: ignore
     csrf = create_csrf()
     redirect = RedirectResponse(url="/protected", status_code=status.HTTP_303_SEE_OTHER)
@@ -96,34 +91,23 @@ async def sign_out(request: Request, response: Response):
 
 
 @auth_router.get("/sign-up")
-async def get_sign_up(request: Request, response: Response) -> HTMLResponse:
+async def get_sign_up(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "sign-up.html")
 
 
 @auth_router.post("/sign-up")
 async def sign_up(
-    request: Request,
-    response: Response,
     data: Annotated[SignUpFormData, Form()],
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> RedirectResponse:
     if data.password != data.confirm:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="passwords don't match",
-        )
+        raise PasswordMismatchException()
     existing_user = user_repo.get_email(data.email)
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="user with this email already exists",
-        )
+        raise EmailConflictException()
     existing_user = user_repo.get_by_username(data.username)
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="user with this username already exists",
-        )
+        raise UsernameConflictException()
     user = create_user(data.email, data.username, data.password)
     session = create_session(user.id)  # type: ignore
     csrf = create_csrf()
@@ -136,7 +120,6 @@ async def sign_up(
 @auth_router.get("/public")
 async def get_public(
     request: Request,
-    response: Response,
     current_user: Annotated[CurrentUser | None, Depends(get_current_user)],
 ) -> HTMLResponse:
     return templates.TemplateResponse(
@@ -145,5 +128,5 @@ async def get_public(
 
 
 @auth_router.get("/protected", dependencies=[Depends(require_auth)])
-async def get_protected(request: Request, response: Response) -> HTMLResponse:
+async def get_protected(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "protected.html")
