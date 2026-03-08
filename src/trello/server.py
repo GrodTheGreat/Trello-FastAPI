@@ -16,5 +16,13 @@ async def not_found_exception_handler(_: Request, exc: NotFoundException):
     )
 
 
+@app.exception_handler(Exception)
+async def internal_server_exception_handler(_: Request, exc: Exception):
+    return JSONResponse(
+        content={"message": "an unexpected error occurred"},
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
 app.include_router(ssr_router, prefix="")
 app.include_router(api_router, prefix="/api")
