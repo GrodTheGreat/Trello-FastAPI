@@ -77,6 +77,7 @@ class OrganizationMemberRecord(SQLModel, table=True):
 class UserRecord(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
+    username: str = Field(unique=True, index=True)
     password_hash: str
 
     boards: list["BoardRecord"] = Relationship(
@@ -165,8 +166,16 @@ engine = create_engine(
 SQLModel.metadata.create_all(engine)
 
 with Session(engine) as session:
-    u1 = UserRecord(email="user1@email.com", password_hash=hash_password("password"))
-    u2 = UserRecord(email="user2@email.com", password_hash=hash_password("password"))
+    u1 = UserRecord(
+        email="user1@email.com",
+        username="testuser1",
+        password_hash=hash_password("password"),
+    )
+    u2 = UserRecord(
+        email="user2@email.com",
+        username="testuser2",
+        password_hash=hash_password("password"),
+    )
     o = OrganizationRecord(name="Organization 1")
     session.add(u1)
     session.add(u2)
