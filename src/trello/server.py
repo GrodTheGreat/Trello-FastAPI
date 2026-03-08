@@ -1,4 +1,6 @@
+import time
 import uuid
+from typing import Callable
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -27,7 +29,16 @@ async def internal_server_exception_handler(_: Request, exc: Exception):
 
 
 @app.middleware("http")
-async def add_request_id_middleware(request: Request, call_next):
+async def time_request_middleware(request: Request, call_next: Callable):
+    start_time = time.perf_counter()
+    response: Response = await call_next(request)
+    time_taken = time.perf_counter() - start_time
+    response.headers["Trello-Process-Time"] = str(time_taken)
+    return response
+
+
+@app.middleware("http")
+async def add_request_id_middleware(request: Request, call_next: Callable):
     request_id = uuid.uuid4()
     request.state.request_id = request_id
     response: Response = await call_next(request)
