@@ -10,6 +10,8 @@ from sqlmodel import (
     create_engine,
 )
 
+from trello.passwords import hash_password
+
 
 class BoardPermissionLevel(Enum):
     ORG = "org"
@@ -157,8 +159,8 @@ engine = create_engine(
 SQLModel.metadata.create_all(engine)
 
 with Session(engine) as session:
-    u1 = UserRecord(email="user1@email.com", password_hash="password")
-    u2 = UserRecord(email="user2@email.com", password_hash="password")
+    u1 = UserRecord(email="user1@email.com", password_hash=hash_password("password"))
+    u2 = UserRecord(email="user2@email.com", password_hash=hash_password("password"))
     o = OrganizationRecord(name="Organization 1")
     session.add(u1)
     session.add(u2)
@@ -171,7 +173,7 @@ with Session(engine) as session:
         b = BoardRecord(
             organization=o,
             name=f"Board {i}",
-            permissionLevel=BoardPermissionLevel.ORG,
+            permission_level=BoardPermissionLevel.ORG,
             creator=u1 if i % 2 == 1 else u2,
         )
         session.add(b)
