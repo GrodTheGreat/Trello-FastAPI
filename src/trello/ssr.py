@@ -21,6 +21,7 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from trello.database import SessionRecord, UserRecord, engine
@@ -37,19 +38,26 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 IS_PROD = env == "production"
 MAX_AGE = 60 * 5  # 5 min for testing
 CSRF_NBYTES = 32
-CSRF_KEY = "trello-csrf"
-SESSION_KEY = "trello-session"
+CSRF_KEY = "Trello-CSRF-Token"
+SESSION_KEY = "Trello-Session"
 SESSION_NBYTES = 64
 SEPARATOR = "."
 SIGNING_SECRET = "super-secret-key"
-X_CSRF_KEY = "x-trello-csrf"
+X_CSRF_KEY = "Request-Trello-CSRF-Token"
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-EmailFormField = Annotated[str, Form()]
-UsernameFormField = Annotated[str, Form()]
-PasswordFormField = Annotated[str, Form()]
-ConfirmFormField = Annotated[str, Form()]
+
+class SignInFormData(BaseModel):
+    email: str
+    password: str
+
+
+class SignUpFormData(BaseModel):
+    email: str
+    username: str
+    password: str
+    confirm: str
 
 
 def verify_csrf(
@@ -95,16 +103,15 @@ async def get_sign_in(request: Request) -> HTMLResponse:
 async def sign_in(
     request: Request,
     response: Response,
-    email: EmailFormField,
-    password: PasswordFormField,
+    data: Annotated[SignInFormData, Form()],
 ) -> RedirectResponse:
-    user = get_user_by_email(email)
+    user = get_user_by_email(data.email)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="invalid email/password combination",
         )
-    if not is_correct_password(password, user.password_hash):
+    if not is_correct_password(data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="invalid email/password combination",
@@ -131,29 +138,26 @@ async def get_sign_up(request: Request, response: Response) -> HTMLResponse:
 async def sign_up(
     request: Request,
     response: Response,
-    email: EmailFormField,
-    username: UsernameFormField,
-    password: PasswordFormField,
-    confirm: ConfirmFormField,
+    data: Annotated[SignUpFormData, Form()],
 ) -> RedirectResponse:
-    if password != confirm:
+    if data.password != data.confirm:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="passwords don't match",
         )
-    existing_user = get_user_by_email(email)
+    existing_user = get_user_by_email(data.email)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="user with this email already exists",
         )
-    existing_user = get_user_by_username(username)
+    existing_user = get_user_by_username(data.username)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="user with this username already exists",
         )
-    user = create_user(email, username, password)
+    user = create_user(data.email, data.username, data.password)
     session = create_session(user.id)  # type: ignore
     csrf = create_csrf()
     redirect = RedirectResponse(url="/protected", status_code=status.HTTP_303_SEE_OTHER)
