@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from trello.api.router import api_router
 from trello.exceptions import NotFoundException
-from trello.ssr import ssr_router
+from trello.ssr.router import ssr_router
 
 app = FastAPI()
 

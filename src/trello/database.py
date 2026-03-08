@@ -11,7 +11,7 @@ from sqlmodel import (
     create_engine,
 )
 
-from trello.passwords import hash_password
+from trello.ssr.auth.passwords import hash_password
 
 
 class BoardPermissionLevel(Enum):
