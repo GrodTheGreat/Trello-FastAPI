@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session
 
-from trello.adaptors.cards.repository import CardRepository
+from trello.adapters.cards.repository import CardRepository
 from trello.api.dependencies import get_db
 from trello.authorization import CardPolicy
 

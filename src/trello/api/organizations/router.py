@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Path, status
 from fastapi.params import Depends
 
-from trello.adaptors.boards.repository import BoardRepository
-from trello.adaptors.organizations.repository import OrganizationRepository
+from trello.adapters.boards.repository import BoardRepository
+from trello.adapters.organizations.repository import OrganizationRepository
 from trello.api.boards.dependecies import get_board_repo
 from trello.api.boards.schemas import BoardsResponse, board_record_to_schema
 from trello.api.dependencies import OptionalUser, get_user

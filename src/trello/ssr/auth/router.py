@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
-from trello.adaptors.users.repository import UserRepository, create_user
+from trello.adapters.users.repository import UserRepository, create_user
 from trello.api.dependencies import get_db
 from trello.database import SessionRecord, engine
 

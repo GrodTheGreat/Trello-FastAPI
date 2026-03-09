@@ -15,7 +15,7 @@ async def get_member(member_id: MemberIdRouteParam):
 
 @member_router.get("/boards", status_code=status.HTTP_200_OK)
 async def get_member_boards(member_id: MemberIdRouteParam):
-    pass
+    raise NotImplementedError()
 
 
 @member_router.get("/organizations", status_code=status.HTTP_200_OK)

@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from trello.adaptors.boards.repository import BoardRepository
-from trello.adaptors.cards.repository import CardRepository
-from trello.adaptors.lists.repository import ListRepository
+from trello.adapters.boards.repository import BoardRepository
+from trello.adapters.cards.repository import CardRepository
+from trello.adapters.lists.repository import ListRepository
 from trello.api.boards.dependecies import get_board_repo
 from trello.api.boards.schemas import BoardResponse, board_record_to_schema
 from trello.api.cards.dependecies import get_card_policy, get_card_repo

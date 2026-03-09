@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
 
-from trello.adaptors.users.repository import UserRepository
+from trello.adapters.users.repository import UserRepository
 from trello.api.router import api_router
 from trello.database import engine
 from trello.exceptions import NotFoundException
