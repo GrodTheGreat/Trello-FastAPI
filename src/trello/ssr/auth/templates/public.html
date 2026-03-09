@@ -10,9 +10,7 @@
       <nav>
         {% if current_user %}
           <div>
-            <form action="/sign-out" method="post">
-              <button type="submit">Sign Out</button>
-            </form>
+            <a href="/sign-out">Sign Out</a>
           </div>
         {% else %}
           <div>

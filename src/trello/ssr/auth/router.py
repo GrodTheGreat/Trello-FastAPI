@@ -1,10 +1,11 @@
-import hashlib
 import pathlib
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
+    Cookie,
     Depends,
     Form,
     HTTPException,
@@ -14,12 +15,13 @@ from fastapi import (
 )
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from trello.adaptors.users.repository import UserRepository, create_user
-from trello.database import get_db
+from trello.api.dependencies import get_db
+from trello.database import SessionRecord, engine
 
-from .csrf import create_csrf, set_csrf_cookie, verify_csrf
+from .csrf import CSRF_KEY, create_csrf, set_csrf_cookie, verify_csrf
 from .exceptions import (
     EmailConflictException,
     LoginFailureException,
@@ -28,7 +30,7 @@ from .exceptions import (
 )
 from .passwords import is_correct_password
 from .schemas import SignInFormData, SignUpFormData
-from .sessions import SESSION_KEY, create_session, set_session_cookie
+from .sessions import SESSION_KEY, create_session, hash_session, set_session_cookie
 
 TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
 
@@ -36,25 +38,17 @@ auth_router = APIRouter()
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
+def get_user_repo(db: Annotated[Session, Depends(get_db)]) -> UserRepository:
+    return UserRepository(db)
+
+
 @dataclass
 class CurrentUser:
     user_id: int
 
 
-def get_user_repo(db: Annotated[Session, Depends(get_db)]) -> UserRepository:
-    return UserRepository(db)
-
-
-def get_current_user(
-    request: Request,
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-) -> CurrentUser | None:
-    token = request.cookies.get(SESSION_KEY)
-    if token is None:
-        return None
-    session_hash = hashlib.sha256(token.encode()).hexdigest()
-    user = user_repo.get_by_session(session_hash)
-    return CurrentUser(user_id=user.id) if user else None  # type: ignore
+def get_current_user(request: Request) -> CurrentUser | None:
+    return request.state.user
 
 
 def require_auth(
@@ -85,9 +79,39 @@ async def sign_in(
     return redirect
 
 
-@auth_router.post("/sign-out", dependencies=[Depends(verify_csrf)])
-async def sign_out(request: Request, response: Response):
-    raise NotImplementedError()
+@auth_router.get("/sign-out", dependencies=[Depends(require_auth)])
+async def get_sign_out(request: Request, response: Response) -> HTMLResponse:
+    return templates.TemplateResponse(request, "sign-out.html")
+
+
+@auth_router.post(
+    "/sign-out", dependencies=[Depends(verify_csrf), Depends(require_auth)]
+)
+async def sign_out(
+    request: Request,
+    response: Response,
+    token: Annotated[str, Cookie(alias=SESSION_KEY)],
+):
+    session_hash = hash_session(token)
+    now = datetime.now(timezone.utc)
+    with Session(engine) as db:
+        statement = (
+            select(SessionRecord)
+            .where(
+                SessionRecord.session_hash == session_hash,
+                SessionRecord.expires_at > now,
+                SessionRecord.revoked_at == None,  # noqa: E711
+            )
+            .limit(1)
+        )
+        session = db.exec(statement).first()
+        if session:
+            session.revoked_at = now
+            db.commit()
+    redirect = RedirectResponse(url="/public", status_code=status.HTTP_303_SEE_OTHER)
+    redirect.delete_cookie(SESSION_KEY, httponly=True)
+    redirect.delete_cookie(CSRF_KEY, httponly=False)
+    return redirect
 
 
 @auth_router.get("/sign-up")
@@ -123,7 +147,9 @@ async def get_public(
     current_user: Annotated[CurrentUser | None, Depends(get_current_user)],
 ) -> HTMLResponse:
     return templates.TemplateResponse(
-        request, "public.html", {"current_user": current_user}
+        request,
+        "public.html",
+        {"current_user": current_user},
     )
 
 

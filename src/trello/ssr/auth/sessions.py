@@ -29,9 +29,13 @@ def set_session_cookie(response: Response, token: str) -> None:
     )
 
 
+def hash_session(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def create_session(user_id: int) -> str:
     token = secrets.token_urlsafe(SESSION_NBYTES)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    token_hash = hash_session(token)
     expiry = datetime.now(timezone.utc) + timedelta(seconds=MAX_AGE)
     session = SessionRecord(session_hash=token_hash, user_id=user_id, expires_at=expiry)
     with Session(engine) as db:

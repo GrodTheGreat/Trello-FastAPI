@@ -1,11 +1,15 @@
 import time
 import uuid
+from dataclasses import dataclass
 from typing import Callable
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import JSONResponse
+from sqlmodel import Session
 
+from trello.adaptors.users.repository import UserRepository
 from trello.api.router import api_router
+from trello.database import engine
 from trello.exceptions import NotFoundException
 from trello.ssr.auth.exceptions import (
     EmailConflictException,
@@ -13,6 +17,7 @@ from trello.ssr.auth.exceptions import (
     PasswordMismatchException,
     UsernameConflictException,
 )
+from trello.ssr.auth.sessions import SESSION_KEY, hash_session
 from trello.ssr.router import ssr_router
 
 app = FastAPI()
@@ -72,6 +77,26 @@ async def internal_server_exception_handler(_: Request, exc: Exception):
         content={"message": "an unexpected error occurred"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+@dataclass
+class CurrentUser:
+    user_id: int
+
+
+@app.middleware("http")
+async def get_current_user_middleware(request: Request, call_next: Callable):
+    current_user = None
+    session = request.cookies.get(SESSION_KEY)
+    if session is not None:
+        session_hash = hash_session(session)
+        with Session(engine) as db:
+            user_repo = UserRepository(db)
+            user = user_repo.get_by_session(session_hash)
+            if user is not None:
+                current_user = CurrentUser(user_id=user.id)  # type: ignore
+    request.state.user = current_user
+    return await call_next(request)
 
 
 @app.middleware("http")
